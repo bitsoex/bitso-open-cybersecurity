@@ -1,0 +1,31 @@
+# Terraform State Files
+*.tfstate
+*.tfstate.*
+
+# Terraform Plan Files
+*.tfplan
+
+# Crash Logs
+crash.log
+
+# Terraform Variable Files
+*.tfvars
+*.tfvars.json
+
+# Override Files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform Lock Files
+.terraform.lock.hcl
+
+# Directory for Terraform Plugins
+.terraform/
+
+# Sensitive credentials files (if any)
+terraform.tfvars
+
+#layer files
+/lambda_layers/python
