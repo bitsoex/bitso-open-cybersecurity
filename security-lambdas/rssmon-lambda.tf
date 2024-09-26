@@ -32,7 +32,7 @@ resource "aws_iam_policy" "rssmon-lambda-policy" {
               "s3:GetObject"
             ],
             "Resource": [
-              "${aws_s3_bucket.pocketsoc-files-bucket.arn}/*"
+              "${aws_s3_bucket.open-pocketsoc-files-bucket.arn}/*"
             ]
         }
       ]
@@ -86,7 +86,7 @@ resource "aws_lambda_function" "rssmon-lambda" {
   memory_size      = 1024
   runtime          = "python3.10"
   timeout          = 900
-  layers           = [aws_lambda_layer_version.pocketsoc-deps-layer.arn]
+  layers           = [aws_lambda_layer_version.open-pocketsoc-deps-layer.arn]
 }
 
 # Trigger resources and configurations

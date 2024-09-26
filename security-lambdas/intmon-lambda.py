@@ -22,7 +22,7 @@ intel_keywords = ["crypto", "cryptocurrency", "bitso", "aws", "amazon", "okta", 
 def check_db():
     try:
         s3 = boto3.resource('s3')
-        s3.Bucket("pocketsoc-files").download_file("int.db", "/tmp/int.db")
+        s3.Bucket("open-pocketsoc-files").download_file("int.db", "/tmp/int.db")
     except:
         print("[!] DB Not found. Creating it.")
     if path.exists('/tmp/int.db'):
@@ -39,7 +39,7 @@ def update_db():
     try:
         s3 = boto3.client('s3')
         with open("/tmp/int.db", "rb") as f:
-            s3.upload_fileobj(f, "pocketsoc-files", "int.db")
+            s3.upload_fileobj(f, "open-pocketsoc-files", "int.db")
     except Exception as e:
         print("[!] Error updating database:"+ str(e) +".")
 
