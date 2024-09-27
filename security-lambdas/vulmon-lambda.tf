@@ -1,5 +1,5 @@
 resource "aws_iam_policy" "vulmon-lambda-policy" {
-  name   = "vulmon-lambda-policy"
+  name   = "vulmon-lambda-policy-${var.owner}-${random_id.random_string.hex}"
   policy = <<EOF
 {
       "Version": "2012-10-17",
@@ -22,7 +22,7 @@ resource "aws_iam_policy" "vulmon-lambda-policy" {
                 "secretsmanager:GetSecretValue"
             ],
             "Resource": [
-              "${aws_secretsmanager_secret.slack-channel-vulns.arn}"
+              "${aws_secretsmanager_secret.slack-channel-rss-int1.arn}"
             ]
         },
         {
@@ -41,7 +41,7 @@ EOF
 }
 
 resource "aws_iam_role" "vulmon-lambda-role" {
-  name               = "vulmon-lambda-role"
+  name               = "vulmon-lambda-role-${var.owner}-${random_id.random_string.hex}"
   description        = "Role to allow Lambda write logs"
   assume_role_policy = <<EOF
 {
@@ -66,7 +66,7 @@ resource "aws_iam_role_policy_attachment" "vulmon-lambda-role-attachment" {
 }
 
 resource "aws_cloudwatch_log_group" "vulmon-lambda-loggroup" {
-  name              = "/aws/lambda/${aws_lambda_function.vulmon-lambda.function_name}"
+  name              = "/aws/lambda/${aws_lambda_function.vulmon-lambda.function_name}-${var.owner}-${random_id.random_string.hex}"
   retention_in_days = "365"
 }
 
@@ -78,7 +78,7 @@ data "archive_file" "vulmon-lambda-package" {
 
 resource "aws_lambda_function" "vulmon-lambda" {
   filename         = "vulmon-lambda.zip"
-  function_name    = "vulmon-lambda"
+  function_name    = "vulmon-lambda-${var.owner}-${random_id.random_string.hex}"
   description      = "Lambda function to retrieve Vulnerabilities Feeds from different sources"
   role             = aws_iam_role.vulmon-lambda-role.arn
   handler          = "vulmon-lambda.main"
@@ -91,7 +91,7 @@ resource "aws_lambda_function" "vulmon-lambda" {
 
 # Trigger resources and configurations
 resource "aws_cloudwatch_event_rule" "vulmon-lambda-hourly-schedule" {
-  name                = "vulmon-hourly-schedule-cloudwatch-event"
+  name                = "vulmon-hourly-schedule-cloudwatch-event-${var.owner}-${random_id.random_string.hex}"
   description         = "Executes VULMon Lambda function hourly"
   schedule_expression = "cron(0 12 ? * * *)"
   is_enabled          = "true"
@@ -103,7 +103,7 @@ resource "aws_cloudwatch_event_target" "vulmon-cloudwatch-target" {
 }
 
 resource "aws_lambda_permission" "vulmon-lambda-allow-cloudwatch-event" {
-  statement_id  = "AllowExecutionFromCloudWatchWeekly"
+  statement_id  = "AllowExecutionFromCloudWatchWeekly-${var.owner}-${random_id.random_string.hex}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.vulmon-lambda.function_name
   principal     = "events.amazonaws.com"

@@ -17,32 +17,6 @@ from datetime import date
 #Set: Feeds
 #Keywords to monitor (lowercase)
 intel_keywords = ["crypto", "cryptocurrency", "bitso", "aws", "amazon", "okta", "nft", "twilio"]
-
-#Get: DB
-def check_db():
-    try:
-        s3 = boto3.resource('s3')
-        s3.Bucket("open-pocketsoc-files").download_file("int.db", "/tmp/int.db")
-    except:
-        print("[!] DB Not found. Creating it.")
-    if path.exists('/tmp/int.db'):
-        connection = sqlite3.connect("/tmp/int.db", isolation_level=None)
-    else:
-        connection = sqlite3.connect("/tmp/int.db", isolation_level=None)
-        cursor = connection.cursor()
-        cursor.execute("CREATE TABLE intel (pulse_id TEXT, name TEXT, description TEXT, first_seen DATETIME)")
-        cursor.close()
-    return connection
-
-#Put: DB
-def update_db():
-    try:
-        s3 = boto3.client('s3')
-        with open("/tmp/int.db", "rb") as f:
-            s3.upload_fileobj(f, "open-pocketsoc-files", "int.db")
-    except Exception as e:
-        print("[!] Error updating database:"+ str(e) +".")
-
 #Get: Secrets
 def get_secret(secret_name):
     region_name = "us-east-2"
@@ -56,8 +30,8 @@ def get_secret(secret_name):
     return secret
 
 #Set: Secrets
-slack_channel_rss_int = get_secret("bitso/open_pocketsoc/slack_channel_rss_int")
-intel_otx_key = get_secret("bitso/open_pocketsoc/intel_otx_key")
+slack_channel_rss_int = get_secret("bitso/open_pocketsoc/slack_channel_rss_int-ownername")
+intel_otx_key = get_secret("bitso/open_pocketsoc/intel_otx_key-ownername")
 
 #Post: Slack notification
 def send(message):
@@ -73,7 +47,6 @@ def send(message):
 #Get: All Intel pulses
 def get_intel():
     output = ""
-    connection = check_db()
     #AlienVault OTX
     today = date.today()
     pulses_found = 0
@@ -90,18 +63,8 @@ def get_intel():
     for i in results:
         print(i['name'])
         if any(ext in i['name'].lower() for ext in intel_keywords) or any(ext in i['description'].lower() for ext in intel_keywords):
-            #Add transaction
-            cursor = connection.cursor()
-            #Check if entry exists
-            cursor.execute("SELECT COUNT(*) AS CNT FROM intel WHERE pulse_id = ? LIMIT 1", ([i['id']]))
-            row = cursor.fetchone()[0]
-            if str(row) != "1":
-                pulses_found += 1
-                cursor.execute("INSERT INTO intel (pulse_id, name, description, first_seen) values (?, ?, ?, ?)", (i['id'], i['name'], i['description'], i['modified']))
-                output += str(i['name']) + ": " + str(i['description']) + "\n\n"
-            cursor.close()
+            output += str(i['name']) + ": " + str(i['description']) + "\n\n"
     if output != "":
-        update_db()
         send(output)
 
 #Run

@@ -9,7 +9,7 @@ ZIP_FILE="bitso-open-lambda-layer.zip"
 mkdir -p $LAYER_DIR
 
 # Install Python dependencies (modify the packages as needed)
-pip3.10 install requests boto3 -t $LAYER_DIR
+pip3.10 install requests boto3 websocket websocket-client feedparser ssl json socket -t $LAYER_DIR
 
 # Create a zip file named bits-open-lambda-layer.zip
 cd layer

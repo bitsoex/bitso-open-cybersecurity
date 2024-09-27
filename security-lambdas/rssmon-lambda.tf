@@ -1,5 +1,5 @@
 resource "aws_iam_policy" "rssmon-lambda-policy" {
-  name   = "rssmon-lambda-policy"
+  name   = "rssmon-lambda-policy-${var.owner}-${random_id.random_string.hex}"
   policy = <<EOF
 {
       "Version": "2012-10-17",
@@ -22,7 +22,7 @@ resource "aws_iam_policy" "rssmon-lambda-policy" {
                 "secretsmanager:GetSecretValue"
             ],
             "Resource": [
-              "${aws_secretsmanager_secret.slack-channel-rss-int.arn}"
+              "${aws_secretsmanager_secret.slack-channel-rss-int1.arn}"
             ]
         },
         {
@@ -41,7 +41,7 @@ EOF
 }
 
 resource "aws_iam_role" "rssmon-lambda-role" {
-  name               = "rssmon-lambda-role"
+  name               = "rssmon-lambda-role-${var.owner}-${random_id.random_string.hex}"
   description        = "Role to allow Lambda write logs"
   assume_role_policy = <<EOF
 {
@@ -66,7 +66,7 @@ resource "aws_iam_role_policy_attachment" "rssmon-lambda-role-attachment" {
 }
 
 resource "aws_cloudwatch_log_group" "rssmon-lambda-loggroup" {
-  name              = "/aws/lambda/${aws_lambda_function.rssmon-lambda.function_name}"
+  name              = "/aws/lambda/${aws_lambda_function.rssmon-lambda.function_name}-${var.owner}-${random_id.random_string.hex}"
   retention_in_days = 365
 }
 
@@ -78,7 +78,7 @@ data "archive_file" "rssmon-lambda-package" {
 
 resource "aws_lambda_function" "rssmon-lambda" {
   filename         = "rssmon-lambda.zip"
-  function_name    = "rssmon-lambda"
+  function_name    = "rssmon-lambda-${var.owner}-${random_id.random_string.hex}"
   description      = "Lambda function to retrieve RSS news from different sources"
   role             = aws_iam_role.rssmon-lambda-role.arn
   handler          = "rssmon-lambda.main"
@@ -91,7 +91,7 @@ resource "aws_lambda_function" "rssmon-lambda" {
 
 # Trigger resources and configurations
 resource "aws_cloudwatch_event_rule" "rssmon-lambda-hourly-schedule" {
-  name                = "rssmon-hourly-schedule-cloudwatch-event"
+  name                = "rssmon-hourly-schedule-cloudwatch-event-${var.owner}-${random_id.random_string.hex}"
   description         = "Executes RSSMon Lambda function hourly"
   schedule_expression = "cron(0 * * * ? *)"
   is_enabled          = true
@@ -103,7 +103,7 @@ resource "aws_cloudwatch_event_target" "rssmon-cloudwatch-target" {
 }
 
 resource "aws_lambda_permission" "rssmon-lambda-allow-cloudwatch-event" {
-  statement_id  = "AllowExecutionFromCloudWatchHourly"
+  statement_id  = "AllowExecutionFromCloudWatchHourly-${var.owner}-${random_id.random_string.hex}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.rssmon-lambda.function_name
   principal     = "events.amazonaws.com"
