@@ -1,5 +1,5 @@
 resource "aws_iam_policy" "intmon-lambda-policy" {
-  name   = "intmon-lambda-policy"
+  name   = "intmon-lambda-policy-${var.owner}-${random_id.random_string.hex}"
   policy = <<EOF
 {
       "Version": "2012-10-17",
@@ -22,8 +22,8 @@ resource "aws_iam_policy" "intmon-lambda-policy" {
                 "secretsmanager:GetSecretValue"
             ],
             "Resource": [
-              "${aws_secretsmanager_secret.intel-otx-key.arn}",
-              "${aws_secretsmanager_secret.slack-channel-rss-int.arn}"
+              "${aws_secretsmanager_secret.intel-otx-key1.arn}",
+              "${aws_secretsmanager_secret.slack-channel-rss-int1.arn}"
             ]
         },
         {
@@ -42,7 +42,7 @@ EOF
 }
 
 resource "aws_iam_role" "intmon-lambda-role" {
-  name               = "intmon-lambda-role"
+  name               = "intmon-lambda-role-${var.owner}-${random_id.random_string.hex}"
   description        = "Role to allow Lambda write logs"
   assume_role_policy = <<EOF
 {
@@ -67,7 +67,7 @@ resource "aws_iam_role_policy_attachment" "intmon-lambda-role-attachment" {
 }
 
 resource "aws_cloudwatch_log_group" "intmon-lambda-loggroup" {
-  name              = "/aws/lambda/${aws_lambda_function.intmon-lambda.function_name}"
+  name              = "/aws/lambda/${aws_lambda_function.intmon-lambda.function_name}-${var.owner}-${random_id.random_string.hex}"
   retention_in_days = "365"
 }
 
@@ -79,7 +79,7 @@ data "archive_file" "intmon-lambda-package" {
 
 resource "aws_lambda_function" "intmon-lambda" {
   filename         = "intmon-lambda.zip"
-  function_name    = "intmon-lambda"
+  function_name    = "intmon-lambda-${var.owner}-${random_id.random_string.hex}"
   description      = "Lambda function to retrieve intelligence pulses from different sources"
   role             = aws_iam_role.intmon-lambda-role.arn
   handler          = "intmon-lambda.main"
@@ -92,7 +92,7 @@ resource "aws_lambda_function" "intmon-lambda" {
 
 # Trigger resources and configurations
 resource "aws_cloudwatch_event_rule" "intmon-lambda-hourly-schedule" {
-  name                = "intmon-hourly-schedule-cloudwatch-event"
+  name                = "intmon-hourly-schedule-cloudwatch-event-${var.owner}-${random_id.random_string.hex}"
   description         = "Executes INTMon Lambda function hourly"
   schedule_expression = "cron(0 12 ? * * *)"
   is_enabled          = "true"
@@ -104,7 +104,7 @@ resource "aws_cloudwatch_event_target" "intmon-cloudwatch-target" {
 }
 
 resource "aws_lambda_permission" "intmon-lambda-allow-cloudwatch-event" {
-  statement_id  = "AllowExecutionFromCloudWatchWeekly"
+  statement_id  = "AllowExecutionFromCloudWatchWeekly-${var.owner}-${random_id.random_string.hex}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.intmon-lambda.function_name
   principal     = "events.amazonaws.com"

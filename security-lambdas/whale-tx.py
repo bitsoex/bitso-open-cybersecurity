@@ -1,20 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-import socket
-import sqlite3
-import os.path
-from os import path
-import sys
 import requests
 import json
-from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 
-# Configuration & notifier
-import settings
 
-# Get Slack webhook URL from Secrets Manager
 def get_secret(secret_name):
     region_name = "us-east-2"
     session = boto3.session.Session()
@@ -25,125 +14,87 @@ def get_secret(secret_name):
         raise e
     secret = get_secret_value_response['SecretString']
     return secret
+slack_webhook_url = get_secret("bitso/open_pocketsoc/slack_channel_rss_int-ownername")
 
-# Slack webhook for notifications
-slack_webhook_url = get_secret("bitso/open_pocketsoc/whale-tx")
+aKey = get_secret("bitso/open_pocketsoc/whale-tx-ownername")
 
-# Send a message to Slack
+api_url = f"https://api.whale-alert.io/v1/transactions?api_key={aKey}"
+
+# Define los parámetros para la solicitud
+params = {
+    "blockchain": "ethereum,bitcoin,tron",  # Lista de blockchains
+    "min_value": 100000  # Valor mínimo en USD
+}
+
+# Función para enviar mensaje a Slack
 def send_to_slack(message):
     try:
-        url = slack_webhook_url
-        headers = {'Content-Type': 'application/json'}
-        data = json.dumps({"text": message})
-        response = requests.post(url, headers=headers, data=data)
+        payload = {"text": message}
+        response = requests.post(slack_webhook_url, json=payload)
         if response.status_code != 200:
-            print(f"Error sending message to Slack. Status code: {response.status_code}, Response: {response.text}")
+            print(f"Error sending message to Slack: {response.status_code}, {response.text}")
+        else:
+            print("Message sent to Slack successfully.")
     except Exception as e:
-        print(f"Exception occurred while sending message to Slack: {e}")
+        print(f"Error occurred while sending message to Slack: {e}")
 
-# Create or open existing database
-def check_db():
-    if path.exists('trx.db'):
-        connection = sqlite3.connect("trx.db", isolation_level=None)
-    else:
-        connection = sqlite3.connect("trx.db", isolation_level=None)
-        cursor = connection.cursor()
-        cursor.execute("""
-            CREATE TABLE trans (
-                ophash TEXT, 
-                direction TEXT, 
-                currency TEXT, 
-                blockchain TEXT, 
-                crypto_amount TEXT, 
-                usd_amount TEXT, 
-                from_addr TEXT, 
-                to_addr TEXT, 
-                exchange TEXT, 
-                first_seen DATETIME
-            )
-        """)
-        cursor.close()
-    return connection
+# Función para procesar y formatear la alerta
+def parse_alert(data):
+    blockchain = data.get("blockchain", "N/A")
+    transaction_type = data.get("transaction_type", "N/A")
+    from_wallet = data.get("from", "N/A")
+    to_wallet = data.get("to", "N/A")
+    amounts = data.get("amounts", [])
+    amount_info = ""
+    if amounts:
+        amount = amounts[0].get("amount", "N/A")
+        symbol = amounts[0].get("symbol", "N/A")
+        amount_info = f"{amount} {symbol}"
 
-# Reset DB
-def truncate():
-    connection = check_db()
-    cursor = connection.cursor()
-    cursor.execute("DELETE FROM trans")
-    cursor.close()
-    send_to_slack("DB initialization completed.")
-    print("Database truncated.")
+    text = data.get("text", "N/A")
+    transaction_hash = data.get("hash", "N/A")
+    fee = data.get("fee", "N/A")
+    fee_symbol = data.get("fee_symbol", "N/A")
+    fee_symbol_price = data.get("fee_symbol_price", "N/A")
 
-# Scan - Scan all transactions
-def scan():
-    output = ""
-    connection = check_db()
-    url = f"https://api.whale-alert.io/v1/transactions?api_key={settings.trans_api_key}"
-    json_out = requests.get(url).json()
-    transactions = json_out['transactions']
-    trans_count = 0
-    for transact in transactions:
-        trans_direction = ""
-        trans_block = transact['blockchain']
-        trans_sym = transact['symbol']
-        trans_hash = str(transact['hash'])
-        trans_from_addr = transact['from']['address']
-        trans_to_addr = transact['to']['address']
-        trans_amount = str(transact['amount'])
-        trans_amount_usd = str(transact['amount_usd'])
-        trans_date_unix = int(transact['timestamp'])
-        trans_date = datetime.utcfromtimestamp(trans_date_unix).strftime('%Y-%m-%d %H:%M:%S')
-        trans_exchange = ""
-        trans_from = ""
-        trans_to = ""
-        this_transact = ""
+    formatted_message = (
+        f"Blockchain: {blockchain}\n"
+        f"Transaction Type: {transaction_type}\n"
+        f"From: {from_wallet}\n"
+        f"To: {to_wallet}\n"
+        f"Amounts: {amount_info}\n"
+        f"Text: {text}\n"
+        f"Hash: {transaction_hash}\n"
+        f"Fee: {fee} {fee_symbol}\n"
+        f"Fee Symbol Price: {fee_symbol_price} USD"
+    )
 
-        try:
-            trans_from = transact['from']['owner']
-            if trans_from in settings.trans_subjectFilter:
-                trans_direction = "outgoing"
-                this_transact = f"[Outgoing] From {trans_from_addr} to {trans_to_addr}. ${trans_sym} {trans_amount} (USD {trans_amount_usd}).\n"
-        except Exception as e:
-            pass
-        try:
-            trans_to = transact['to']['owner']
-            if trans_to in settings.trans_subjectFilter:
-                trans_direction = "incoming"
-                this_transact = f"[Incoming] From {trans_from_addr} to {trans_to_addr}. ${trans_sym} {trans_amount} (USD {trans_amount_usd}).\n"
-        except Exception as e:
-            pass
+    return formatted_message
 
-        if trans_from in settings.trans_subjectFilter or trans_to in settings.trans_subjectFilter:
-            trans_exchange = trans_to if trans_from in settings.trans_subjectFilter else trans_from
-            if trans_exchange == "":
-                trans_exchange = "Unknown"
+# Función para obtener transacciones desde la API REST
+def get_transactions():
+    try:
+        response = requests.get(api_url, params=params)
+        if response.status_code != 200:
+            print(f"Error fetching data from Whale Alert API: {response.status_code}, {response.text}")
+            return
 
-            cursor = connection.cursor()
-            cursor.execute("SELECT COUNT(*) AS CNT FROM trans WHERE ophash = ? LIMIT 1", ([trans_hash]))
-            row = cursor.fetchone()[0]
+        # Procesar las transacciones
+        transactions = response.json().get('transactions', [])
+        for transaction in transactions:
+            alert_message = parse_alert(transaction)
+            print(alert_message)
 
-            if str(row) != "1":
-                output += this_transact
-                trans_count += 1
-                cursor.execute("""
-                    INSERT INTO trans 
-                    (ophash, direction, currency, blockchain, crypto_amount, usd_amount, from_addr, to_addr, exchange, first_seen) 
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (str(trans_hash), str(trans_direction), str(trans_sym), str(trans_block), str(trans_amount), str(trans_amount_usd), str(trans_from_addr), str(trans_to_addr), str(trans_exchange), trans_date))
-            cursor.close()
+            # Enviar alerta a Slack
+            send_to_slack(alert_message)
 
-    if output:
-        send_to_slack(output.replace('"', ''))
-        print(f"{trans_count} outstanding transactions registered.")
+    except Exception as e:
+        print(f"Error occurred while fetching transactions: {e}")
 
-# Main function to run in Lambda
+# Función principal para ejecutar la lógica
 def main(event=None, lambda_context=None):
-    if len(sys.argv) <= 1:
-        print("Invalid arguments.")
-    elif str(sys.argv[1]) == "truncate":
-        truncate()
-    elif str(sys.argv[1]) == "scan":
-        scan()
+    get_transactions()
+    print("Process finished. Results sent via Slack.")
 
 if __name__ == "__main__":
-    main({}, {})
+    main()

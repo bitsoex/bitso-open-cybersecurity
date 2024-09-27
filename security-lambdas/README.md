@@ -35,9 +35,9 @@ In order to create an updated lambda layer to add new librearies needed for the 
 
 For Nerdear.la workshop atendees, we will be providing temporal users for our AWS test console.
 
-For nont Nerdear.la workshop atendees, AWS Console and users can be created using the next refreences.
+For nont Nerdear.la workshop atendees, AWS Console and users can be created using the next references.
 
-A AWS account and a AWS user with propper permissions and Programatic Access is needed.
+An AWS account and a AWS user with propper permissions and Programatic Access is needed.
 
 The next links shows how to create a AWS Account, create programatic access and configure AWS CLI.
 

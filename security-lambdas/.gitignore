@@ -1,5 +1,5 @@
 # Ignore specific directory
-specific_directory/
+lambda_layers/layer
 
 # Ignore Terraform state files
 *.tfstate

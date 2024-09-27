@@ -5,7 +5,7 @@ data "aws_region" "current" {
 }
 
 resource "aws_s3_bucket" "open-pocketsoc-files-bucket" {
-  bucket        = "open-pocketsoc-files"
+  bucket        = "open-pocketsoc-files-${var.owner}"
   force_destroy = "true"
 }
 

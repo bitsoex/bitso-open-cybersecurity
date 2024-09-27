@@ -1,5 +1,5 @@
 resource "aws_iam_policy" "whale-tx-policy" {
-  name   = "whale-tx-policy"
+  name   = "whale-tx-policy-${var.owner}-${random_id.random_string.hex}"
   policy = <<EOF
 {
       "Version": "2012-10-17",
@@ -22,7 +22,8 @@ resource "aws_iam_policy" "whale-tx-policy" {
                 "secretsmanager:GetSecretValue"
             ],
             "Resource": [
-              "${aws_secretsmanager_secret.whale-tx.arn}"
+              "${aws_secretsmanager_secret.whale-tx1.arn}",
+              "${aws_secretsmanager_secret.slack-channel-rss-int1.arn}"
             ]
         },
         {
@@ -41,7 +42,7 @@ EOF
 }
 
 resource "aws_iam_role" "whale-tx-role" {
-  name               = "whale-tx-role"
+  name               = "whale-tx-role-${var.owner}-${random_id.random_string.hex}"
   description        = "Role to allow Lambda write logs"
   assume_role_policy = <<EOF
 {
@@ -66,7 +67,7 @@ resource "aws_iam_role_policy_attachment" "whale-tx-role-attachment" {
 }
 
 resource "aws_cloudwatch_log_group" "whale-tx-loggroup" {
-  name              = "/aws/lambda/${aws_lambda_function.whale-tx.function_name}"
+  name              = "/aws/lambda/${aws_lambda_function.whale-tx.function_name}-${var.owner}-${random_id.random_string.hex}"
   retention_in_days = 365
 }
 
@@ -78,7 +79,7 @@ data "archive_file" "whale-tx-package" {
 
 resource "aws_lambda_function" "whale-tx" {
   filename         = "whale-tx.zip"
-  function_name    = "whale-tx"
+  function_name    = "whale-tx-${var.owner}-${random_id.random_string.hex}"
   description      = "Lambda function to retrieve whale transactions"
   role             = aws_iam_role.whale-tx-role.arn
   handler          = "whale-tx.main"
@@ -91,7 +92,7 @@ resource "aws_lambda_function" "whale-tx" {
 
 # Trigger resources and configurations
 resource "aws_cloudwatch_event_rule" "whale-tx-hourly-schedule" {
-  name                = "rssmon-hourly-schedule-cloudwatch-event"
+  name                = "rssmon-hourly-schedule-cloudwatch-event-${var.owner}-${random_id.random_string.hex}"
   description         = "Executes whale-tx Lambda function hourly"
   schedule_expression = "cron(0 * * * ? *)"
   is_enabled          = true
@@ -103,7 +104,7 @@ resource "aws_cloudwatch_event_target" "whale-tx-cloudwatch-target" {
 }
 
 resource "aws_lambda_permission" "whale-tx-allow-cloudwatch-event" {
-  statement_id  = "AllowExecutionFromCloudWatchHourly"
+  statement_id  = "AllowExecutionFromCloudWatchHourly-${var.owner}-${random_id.random_string.hex}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.whale-tx.function_name
   principal     = "events.amazonaws.com"
