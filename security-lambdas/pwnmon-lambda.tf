@@ -80,7 +80,7 @@ data "archive_file" "pwnmon-lambda-package" {
 resource "aws_lambda_function" "pwnmon-lambda" {
   filename         = "pwnmon-lambda.zip"
   function_name    = "pwnmon-lambda-${var.owner}-${random_id.random_string.hex}"
-  description      = "Lambda function to retrieve Vulnerabilities Feeds from different sources"
+  description      = "Lambda function to identify if an email has been found in a data breach"
   role             = aws_iam_role.pwnmon-lambda-role.arn
   handler          = "pwnmon-lambda.main"
   source_code_hash = data.archive_file.pwnmon-lambda-package.output_base64sha256
